@@ -1,0 +1,13 @@
+# Ignoruj všetko
+*
+
+# Ale povoľ .gitignore, iné configy a priečinky
+!.gitignore
+!*/
+!crawler.py
+!extractor_par.py
+!indexer.py
+!search.py
+!enrich.py
+!indexer_lucene.py
+!search_lucene.py

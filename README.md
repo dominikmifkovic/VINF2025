@@ -1,10 +1,10 @@
-Prve odovzdanie:
-  -crawler.py
-  -extractor_par.py
-  -indexer.py
-  -search.py
+Prve odovzdanie: \n
+  -crawler.py \n
+  -extractor_par.py \n
+  -indexer.py \n
+  -search.py \n
 
-Druhe odovzdanie:
-  -enrich.py
-  -indexer_lucene.py
-  -search_lucene.py
+Druhe odovzdanie: \n
+  -enrich.py \n
+  -indexer_lucene.py \n
+  -search_lucene.py \n

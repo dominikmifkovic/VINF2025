@@ -1,8 +1,6 @@
-# Ignoruj všetko
 *
 venv/
 
-# Ale povoľ .gitignore, iné configy a priečinky
 !.gitignore
 !*/
 !crawler.py

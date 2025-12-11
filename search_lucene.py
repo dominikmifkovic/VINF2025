@@ -2,7 +2,6 @@ import re
 import lucene
 from org.apache.lucene.store import MMapDirectory
 from java.lang import String
-
 from java.nio.file import Paths
 from org.apache.lucene.search import (
     IndexSearcher,
@@ -30,7 +29,6 @@ console = Console()
 
 INDEX_DIR = "lucene_index"
 
-#for MultiFieldQueryParser
 FIELDS = [
     "title", "site_name", "wiki_title",
     "wiki_lead", "wiki_history", "wiki_geography",
@@ -38,12 +36,23 @@ FIELDS = [
     "fulltext"
 ]
 
+SEARCH_FIELDS = (
+    ["title"] * 5 +
+    ["site_name"] * 5 +
+    ["wiki_title"] * 3 +
+    ["wiki_lead"] * 2 +
+    ["fulltext"] * 1
+)
+
 FIELD_MAP = {
     "lead": "wiki_lead",
+    "wiki_lead": "wiki_lead",
     "history": "wiki_history",
     "hist": "wiki_history",
+    "wiki_history": "wiki_history",
     "geography": "wiki_geography",
     "geo": "wiki_geography",
+    "wiki_geography": "wiki_geography",
 
     "aliases": "wiki_txt_aliases",
     "related": "wiki_txt_related_whs_titles",
@@ -55,7 +64,7 @@ FIELD_MAP = {
 
     "soc": "soc_text",
     "summary": "soc_summary",
-    "year": "soc_year", 
+    "year": "soc_year",
 
     "criteria": "criteria",
     "state": "state_parties",
@@ -78,11 +87,8 @@ def open_searcher():
     return searcher, reader
 
 
-
 def parse_user_query(q, parser):
     q = q.strip()
-
-    #RANGE: field:1234-5678
     m = re.match(r"(\w+):(\d+)-(\d+)$", q)
     if m:
         field_raw, start, end = m.groups()
@@ -95,8 +101,6 @@ def parse_user_query(q, parser):
             True,
             True
         )
-
-    #all others
     return parser.parse(q)
 
 
@@ -106,7 +110,7 @@ def run_query(qobj):
 
     print(f"\nFound {top.totalHits.value} results:\n")
     for hit in top.scoreDocs:
-        doc = searcher.doc(hit.doc)
+        doc = searcher.storedFields().document(hit.doc)
         print(f"[{hit.score:.3f}] {doc.get('title')}")
     reader.close()
 
@@ -115,6 +119,7 @@ GREEN = "\033[92m"
 RESET = "\033[0m"
 BOLD = "\033[1m"
 
+
 def main():
     lucene.initVM()
 
@@ -122,7 +127,6 @@ def main():
     reader = DirectoryReader.open(directory)
     searcher = IndexSearcher(reader)
     analyzer = StandardAnalyzer()
-    #parser = MultiFieldQueryParser(FIELDS, analyzer)
 
     while True:
         try:
@@ -135,7 +139,6 @@ def main():
 
         words = q_raw.split()
         words_l = [w.lower() for w in words]
-
         modes = []
         for w in words_l:
             if w in FIELD_MAP:
@@ -147,10 +150,15 @@ def main():
             main_query_text = q_raw
 
         try:
-            flags  = [BooleanClause.Occur.SHOULD] * len(FIELDS)
-            query = MultiFieldQueryParser.parse([main_query_text]*len(FIELDS), FIELDS, flags, analyzer)
+            flags = [BooleanClause.Occur.SHOULD] * len(SEARCH_FIELDS)
+            query = MultiFieldQueryParser.parse(
+                [main_query_text] * len(SEARCH_FIELDS),
+                SEARCH_FIELDS,
+                flags,
+                analyzer
+            )
 
-            hits = searcher.search(query, 20)
+            hits = searcher.search(query, 10)
             total = hits.totalHits.value()
 
             print(f"\nFound {total} results:\n")
@@ -163,9 +171,11 @@ def main():
                     modes_clean.append(m)
                     seen.add(m)
 
+            stored_fields = searcher.storedFields()
+
             for sd in hits.scoreDocs:
                 doc_id = sd.doc
-                doc = searcher.storedFields().document(doc_id)
+                doc = stored_fields.document(doc_id)
 
                 title = (
                     doc.get("site_name") or
@@ -197,19 +207,10 @@ def main():
                         val = doc.get(field)
                         if not val:
                             continue
-                        out = val[:2000] + ("..." if len(val) > 400 else "")
-                        body += f"[bold]{field.upper()}[/bold]:\n{out}\n\n"
-                else:
-                    for fn in ["wiki_lead", "wiki_history", "wiki_geography"]:
-                        val = doc.get(fn)
-                        if not val:
-                            continue
-                        out = val[:2000] + ("..." if len(val) > 300 else "")
-                        body += f"[bold]{fn.upper()}[/bold]:\n{out}\n\n"
+                        out = val[:300] + ("..." if len(val) > 300 else "")
+                        body += f"\n[bold]{field.upper()}[/bold]:\n{out}\n"
 
                 console.print(Panel(body.rstrip(), title=header, expand=True))
-
-
 
         except Exception as e:
             print("ERROR:", e)
